@@ -19,17 +19,17 @@
 
 ## 🚀 تشغيل المشروع
 
-### الخطوة 1: تشغيل الـ Backend
-cd backend
-npm install
-npx prisma generate
-npx prisma migrate dev --name init
-npm run seed
+الخطوة 1: تشغيل الـ Backend (NestJS)
+cd backend ,
+npm install ,
+npx prisma generate ,
+npx prisma migrate dev --name init ,
+npm run seed ,
 npm run start:dev
 
-### الخطوة 1: تشغيل الـ Frontend
-cd ../frontend
-npm install
+الخطوة 2: تشغيل الـ Frontend (React)
+cd ../frontend ,
+npm install ,
 npm run dev
 
 ---------
