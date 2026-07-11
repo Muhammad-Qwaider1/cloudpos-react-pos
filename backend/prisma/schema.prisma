@@ -1,0 +1,336 @@
+// Prisma Schema for CloudPOS
+// PostgreSQL database with full indexing and relationships
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  STOCK_MANAGER
+  CASHIER
+}
+
+enum InvoiceStatus {
+  COMPLETED
+  RETURNED
+  VOIDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum StockMovementReason {
+  SALE
+  RESTOCK
+  ADJUSTMENT
+  RETURN
+  VOID
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+// ==================== USERS ====================
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String     // Plain text for local dev (NO hashing per requirements)
+  full_name    String
+  phone        String?
+  role         UserRole   @default(CASHIER)
+  active       Boolean    @default(true)
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+
+  invoices       Invoice[]
+  shifts         Shift[]
+  stock_movements StockMovement[]
+  audit_logs     AuditLog[]
+  purchase_orders PurchaseOrder[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ==================== PRODUCTS ====================
+
+model Product {
+  id              String   @id @default(uuid())
+  name            String
+  barcode         String?  @unique
+  category        String?
+  description     String?
+  unit_price      Float
+  cost_price      Float    @default(0)
+  stock_quantity  Float    @default(0)
+  min_stock_alert Float    @default(5)
+  tax_exempt      Boolean  @default(false)
+  tax_rate        Float?   // Override global tax rate (null = use global)
+  unit            String   @default("pcs")
+  active          Boolean  @default(true)
+  image_url       String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  invoice_items    InvoiceItem[]
+  stock_movements  StockMovement[]
+  purchase_items   PurchaseOrderItem[]
+
+  @@index([barcode])
+  @@index([name])
+  @@index([category])
+  @@index([active])
+  @@map("products")
+}
+
+// ==================== CUSTOMERS ====================
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  balance   Float    @default(0)
+  address   String?
+  tax_id    String?
+  notes     String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@index([phone])
+  @@index([name])
+  @@index([email])
+  @@map("customers")
+}
+
+// ==================== SUPPLIERS ====================
+
+model Supplier {
+  id             String   @id @default(uuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  balance        Float    @default(0)
+  contact_person String?
+  notes          String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  purchase_orders PurchaseOrder[]
+
+  @@index([name])
+  @@index([phone])
+  @@map("suppliers")
+}
+
+// ==================== SHIFTS ====================
+
+model Shift {
+  id               String      @id @default(uuid())
+  user_id          String
+  user             User        @relation(fields: [user_id], references: [id])
+  opening_cash     Float
+  expected_cash    Float       @default(0)
+  counted_cash     Float?
+  discrepancy      Float?      @default(0)
+  cash_in          Float       @default(0)
+  cash_out         Float       @default(0)
+  total_sales      Float       @default(0)
+  total_cash_sales Float       @default(0)
+  invoice_count    Int         @default(0)
+  status           ShiftStatus @default(OPEN)
+  opened_at        DateTime    @default(now())
+  closed_at        DateTime?
+  notes            String?
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  invoices Invoice[]
+
+  @@index([status])
+  @@index([user_id])
+  @@index([opened_at])
+  @@map("shifts")
+}
+
+// ==================== INVOICES ====================
+
+model Invoice {
+  id              String         @id @default(uuid())
+  invoice_number  String         @unique
+  user_id         String
+  user            User           @relation(fields: [user_id], references: [id])
+  customer_id     String?
+  customer        Customer?      @relation(fields: [customer_id], references: [id])
+  customer_name   String         @default("Walk-in Customer")
+  shift_id        String?
+  shift           Shift?         @relation(fields: [shift_id], references: [id])
+
+  subtotal        Float
+  discount_value  Float          @default(0)
+  discount_type   DiscountType   @default(PERCENTAGE)
+  tax_rate        Float          @default(0.15)
+  tax_amount      Float          @default(0)
+  total           Float
+
+  payment_cash    Float          @default(0)
+  payment_card    Float          @default(0)
+  payment_other   Float          @default(0)
+  change_given    Float          @default(0)
+
+  status          InvoiceStatus  @default(COMPLETED)
+  void_reason     String?
+  return_reason   String?
+  notes           String?
+  item_count      Int            @default(0)
+
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  items           InvoiceItem[]
+
+  @@index([invoice_number])
+  @@index([customer_id])
+  @@index([customer_name])
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+  @@index([shift_id])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id             String       @id @default(uuid())
+  invoice_id     String
+  invoice        Invoice      @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  product_id     String?
+  product        Product?     @relation(fields: [product_id], references: [id])
+  product_name   String
+  barcode        String?
+  quantity       Float
+  unit_price     Float
+  discount_value Float        @default(0)
+  discount_type  DiscountType @default(PERCENTAGE)
+  line_total     Float
+  tax_exempt     Boolean      @default(false)
+
+  created_at     DateTime     @default(now())
+
+  @@index([invoice_id])
+  @@index([product_id])
+  @@index([barcode])
+  @@map("invoice_items")
+}
+
+// ==================== STOCK MOVEMENTS ====================
+
+model StockMovement {
+  id              String                @id @default(uuid())
+  product_id      String
+  product         Product               @relation(fields: [product_id], references: [id])
+  user_id         String?
+  user            User?                 @relation(fields: [user_id], references: [id])
+  change_quantity Float
+  previous_stock  Float
+  new_stock       Float
+  reason          StockMovementReason   @default(ADJUSTMENT)
+  reference_id    String?
+  reference_type  String?
+  notes           String?
+  created_at      DateTime              @default(now())
+
+  @@index([product_id])
+  @@index([reason])
+  @@index([created_at])
+  @@index([user_id])
+  @@map("stock_movements")
+}
+
+// ==================== AUDIT LOG ====================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  user_id     String?
+  user        User?    @relation(fields: [user_id], references: [id])
+  user_name   String?
+  user_role   String?
+  action      String
+  entity_type String?
+  entity_id   String?
+  old_value   Json?
+  new_value   Json?
+  ip_address  String?
+  details     String?
+  created_at  DateTime @default(now())
+
+  @@index([user_id])
+  @@index([action])
+  @@index([entity_type])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+// ==================== PURCHASE ORDERS ====================
+
+model PurchaseOrder {
+  id           String              @id @default(uuid())
+  po_number    String              @unique
+  supplier_id  String?
+  supplier     Supplier?           @relation(fields: [supplier_id], references: [id])
+  supplier_name String?
+  user_id      String?
+  user         User?               @relation(fields: [user_id], references: [id])
+  total        Float               @default(0)
+  status       PurchaseOrderStatus @default(DRAFT)
+  notes        String?
+  created_at   DateTime            @default(now())
+  updated_at   DateTime            @updatedAt
+
+  items        PurchaseOrderItem[]
+
+  @@index([supplier_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(uuid())
+  purchase_order_id String
+  purchase_order   PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  product_id       String
+  product          Product       @relation(fields: [product_id], references: [id])
+  product_name     String
+  quantity         Float
+  unit_cost        Float
+  line_total       Float
+
+  @@index([purchase_order_id])
+  @@index([product_id])
+  @@map("purchase_order_items")
+}
