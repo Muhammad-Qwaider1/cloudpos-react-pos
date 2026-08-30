@@ -60,5 +60,7 @@ tsconfig.tsbuildinfo
 *.pid.lock
 
 # ====================== Database ======================
-db/
+# Ignore db folder only at root level (not frontend/src/db)
+/db/
+backend/db/
 *.sql
