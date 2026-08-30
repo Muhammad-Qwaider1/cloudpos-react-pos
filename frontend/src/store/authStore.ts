@@ -15,17 +15,19 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   initialize: () => void;
+  clearError: () => void;
 }
 
-// 30-minute inactivity timeout
+// ─── Inactivity timeout (30 minutes) ─────────────────────────────────────────
 const TIMEOUT_MS = 30 * 60 * 1000;
 let inactivityTimer: ReturnType<typeof setTimeout>;
 
 const resetTimer = () => {
   clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(() => {
+    // Clear access token only — httpOnly cookie is cleared server-side on logout
     localStorage.removeItem('cloudpos_token');
     localStorage.removeItem('cloudpos_user');
     window.location.href = '/login';
@@ -36,6 +38,7 @@ const resetTimer = () => {
   document.addEventListener(event, resetTimer, { passive: true });
 });
 
+// ─── Store ────────────────────────────────────────────────────────────────────
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
@@ -47,26 +50,33 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const res = await api.post('/auth/login', { email, password });
+      // Server response now only contains access_token + user
+      // refresh_token is stored automatically as httpOnly cookie by the browser
       const { access_token, user } = res.data;
+
       localStorage.setItem('cloudpos_token', access_token);
       localStorage.setItem('cloudpos_user', JSON.stringify(user));
+
       set({ user, token: access_token, isAuthenticated: true, loading: false });
       resetTimer();
     } catch (err: any) {
       const message = err.response?.data?.message;
       const errorMessage = Array.isArray(message)
         ? message.join(', ')
-        : message || (err.code === 'ERR_NETWORK' ? 'Cannot connect to server' : 'Login failed');
+        : message ||
+          (err.code === 'ERR_NETWORK' ? 'Cannot connect to server' : 'Login failed');
 
-      set({
-        loading: false,
-        error: errorMessage,
-      });
+      set({ loading: false, error: errorMessage });
       throw err;
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    // POST /auth/logout — server reads httpOnly cookie and revokes it
+    // No need to send refresh_token in body anymore
+    await api.post('/auth/logout').catch(() => {});
+
+    clearTimeout(inactivityTimer);
     localStorage.removeItem('cloudpos_token');
     localStorage.removeItem('cloudpos_user');
     set({ user: null, token: null, isAuthenticated: false });
@@ -86,4 +96,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
   },
+
+  clearError: () => set({ error: null }),
 }));

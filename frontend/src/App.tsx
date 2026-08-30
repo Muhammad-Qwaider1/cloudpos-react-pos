@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore';
 import { useTheme } from './hooks/useTheme';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import PosTerminal from './pages/PosTerminal';
 import Invoices from './pages/Invoices';
@@ -32,6 +33,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route
           element={
             <ProtectedRoute>

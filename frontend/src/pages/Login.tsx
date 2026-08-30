@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from "../store/authStore";
 import { Store, Mail, Lock, Loader2, Languages } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toggleLanguage } from '../i18n';
 
 export default function Login() {
@@ -68,7 +69,15 @@ export default function Login() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">{t('password')}</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">{t('password')}</label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -96,10 +105,10 @@ export default function Login() {
           <p className="text-xs text-muted-foreground mb-2 font-medium">Demo Accounts (click to fill):</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: 'Admin', em: 'admin@cloudpos.com', pw: 'admin123' },
-              { label: 'Supervisor', em: 'supervisor@cloudpos.com', pw: 'supervisor123' },
-              { label: 'Stock Mgr', em: 'stock@cloudpos.com', pw: 'stock123' },
-              { label: 'Cashier', em: 'cashier@cloudpos.com', pw: 'cashier123' },
+              { label: 'Admin',      em: 'admin@cloudpos.com',      pw: 'Admin@1234' },
+              { label: 'Supervisor', em: 'supervisor@cloudpos.com', pw: 'Super@1234' },
+              { label: 'Stock Mgr', em: 'stock@cloudpos.com',       pw: 'Stock@1234' },
+              { label: 'Cashier',   em: 'cashier@cloudpos.com',     pw: 'Cashier@1234' },
             ].map((d) => (
               <button
                 key={d.em}

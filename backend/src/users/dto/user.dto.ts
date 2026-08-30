@@ -6,7 +6,7 @@ export class CreateUserDto {
   email: string;
 
   @IsString()
-  @MinLength(1)
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
   password: string;
 
   @IsString()
@@ -26,7 +26,7 @@ export class CreateUserDto {
 
 export class UpdateUserDto {
   @IsOptional() @IsEmail() email?: string;
-  @IsOptional() @IsString() @MinLength(1) password?: string;
+  @IsOptional() @IsString() @MinLength(8, { message: 'Password must be at least 8 characters' }) password?: string;
   @IsOptional() @IsString() full_name?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsEnum(UserRole) role?: UserRole;

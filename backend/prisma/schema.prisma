@@ -55,7 +55,7 @@ enum PurchaseOrderStatus {
 model User {
   id           String     @id @default(uuid())
   email        String     @unique
-  password     String     // Plain text for local dev (NO hashing per requirements)
+  password     String     // bcrypt hash
   full_name    String
   phone        String?
   role         UserRole   @default(CASHIER)
@@ -63,15 +63,49 @@ model User {
   created_at   DateTime   @default(now())
   updated_at   DateTime   @updatedAt
 
-  invoices       Invoice[]
-  shifts         Shift[]
+  invoices        Invoice[]
+  shifts          Shift[]
   stock_movements StockMovement[]
-  audit_logs     AuditLog[]
+  audit_logs      AuditLog[]
   purchase_orders PurchaseOrder[]
+  refresh_tokens  RefreshToken[]
+  password_resets PasswordResetToken[]
 
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+// ==================== REFRESH TOKENS ====================
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  expires_at DateTime
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([token])
+  @@index([user_id])
+  @@map("refresh_tokens")
+}
+
+// ==================== PASSWORD RESET TOKENS ====================
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  expires_at DateTime
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([token])
+  @@index([user_id])
+  @@map("password_reset_tokens")
 }
 
 // ==================== PRODUCTS ====================
